@@ -5,6 +5,12 @@ interface Coordinate {
   y: number;
 }
 
+interface Soldier {
+  position: Coordinate;
+  path: Coordinate[];
+  progress: number; // 0 (start of segment) to 1 (end of segment)
+}
+
 const cellSize = 40;  // Размер клетки в пикселях
 const rows = 9;
 const cols = 15;
@@ -59,12 +65,6 @@ const drawGrid = (ctx: CanvasRenderingContext2D, rows: number, cols: number, cel
 const drawTree = (ctx: CanvasRenderingContext2D, tree: Coordinate, cellSize: number) => {
   ctx.fillStyle = 'green';
   ctx.fillRect(tree.x * cellSize, tree.y * cellSize, cellSize, cellSize);
-
-  ctx.fillStyle = 'white';
-  ctx.font = '20px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('W', tree.x * cellSize + cellSize / 2, tree.y * cellSize + cellSize / 2);
 };
 
 const drawHQ = (ctx: CanvasRenderingContext2D, hq: Coordinate, color: string, symbol: string, cellSize: number) => {
@@ -82,6 +82,15 @@ const drawBarrack = (ctx: CanvasRenderingContext2D, barrack: Coordinate, color: 
   ctx.fillRect(barrack.x * cellSize, barrack.y * cellSize, cellSize, cellSize);
   ctx.strokeStyle = 'black';
   ctx.strokeRect(barrack.x * cellSize, barrack.y * cellSize, cellSize, cellSize);
+};
+
+const drawSoldier = (ctx: CanvasRenderingContext2D, soldier: Soldier, color: string, cellSize: number) => {
+  ctx.fillStyle = color;
+  const centerX = soldier.position.x * cellSize + cellSize / 2;
+  const centerY = soldier.position.y * cellSize + cellSize / 2;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, cellSize / 4, 0, 2 * Math.PI);
+  ctx.fill();
 };
 
 const heuristic = (a: Coordinate, b: Coordinate): number => {
@@ -163,9 +172,9 @@ const findPathAStar = (start: Coordinate, goal: Coordinate, obstacles: Coordinat
   return [];
 };
 
-const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cellSize: number, color: string) => {
+const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cellSize: number) => {
   if (currentPath.length > 0) {
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = 'red';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.setLineDash([5, 5]);  // пунктирная линия
@@ -177,13 +186,10 @@ const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cell
 
 const Game: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [animationPath, setAnimationPath] = useState<Coordinate[]>([]);
   const [trees, setTrees] = useState<Coordinate[]>([]);
   const [barracks, setBarracks] = useState<{ forE: Coordinate | null, forK: Coordinate | null }>({ forE: null, forK: null });
-  const [requestId, setRequestId] = useState<number | null>(null);
-  const [isDrawingBlueLine, setIsDrawingBlueLine] = useState<boolean>(false);
-  const [blueLinePath, setBlueLinePath] = useState<Coordinate[]>([]);
-  const [originKClicked, setOriginKClicked] = useState<boolean>(false);
+  const [soldiers, setSoldiers] = useState<Soldier[]>([]);
+  const [path, setPath] = useState<Coordinate[]>([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -201,152 +207,69 @@ const Game: React.FC = () => {
         const freeCellForBlue = findFreeAdjacentCell(blueHQ, [...newTrees, ...allHqs], rows, cols);
         setBarracks({ forE: freeCellForRed, forK: freeCellForBlue });
 
-        const render = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          drawGrid(ctx, rows, cols, cellSize);
-          newTrees.forEach(tree => drawTree(ctx, tree, cellSize));
-          drawHQ(ctx, redHQ, 'red', 'E', cellSize);
-          drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);
-          if (freeCellForRed) drawBarrack(ctx, freeCellForRed, 'red', cellSize);
-          if (freeCellForBlue) drawBarrack(ctx, freeCellForBlue, 'blue', cellSize);
-        };
+        const foundPath = findPathAStar(redHQ, blueHQ, newTrees, rows, cols);
+        setPath(foundPath);
 
-        render();
-
-        const path = findPathAStar(redHQ, blueHQ, newTrees, rows, cols);
-        let startTime: number | null = null;
-
-        const animatePath = (timestamp: number) => {
-          if (!startTime) startTime = timestamp;
-          const progress = timestamp - startTime;
-
-          const step = Math.floor(progress / 100);  // обновляем каждые 100 мс
-          
-          if (step < path.length) {
-            setAnimationPath(path.slice(0, step + 1));
-            const reqId = requestAnimationFrame(animatePath);
-            setRequestId(reqId);
-          } else {
-            cancelAnimationFrame(requestId as number);
-            setRequestId(null);
-          }
-        };
-
-        const reqId = requestAnimationFrame(animatePath);
-        setRequestId(reqId);
+        const soldierInterval = setInterval(() => {
+          setSoldiers(prev => [
+            ...prev,
+            { position: redHQ, path: foundPath, progress: 0 }
+          ]);
+        }, 6000);
 
         return () => {
-          if (requestId) {
-            cancelAnimationFrame(requestId);
-          }
+          clearInterval(soldierInterval);
         };
       }
     }
   }, []);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        drawGrid(ctx, rows, cols, cellSize);
-        trees.forEach(tree => drawTree(ctx, tree, cellSize));
-        drawHQ(ctx, redHQ, 'red', 'E', cellSize);
-        drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);
-        if (barracks.forE) drawBarrack(ctx, barracks.forE, 'red', cellSize);
-        if (barracks.forK) drawBarrack(ctx, barracks.forK, 'blue', cellSize);
-        drawPath(ctx, animationPath, cellSize, 'red');
-        drawPath(ctx, blueLinePath, cellSize, 'blue');
-      }
-    }
-  }, [animationPath, trees, barracks, blueLinePath]);
-
-  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const rect = canvas.getBoundingClientRect();
-      const x = Math.floor((event.clientX - rect.left) / cellSize);
-      const y = Math.floor((event.clientY - rect.top) / cellSize);
-      const position = { x, y };
-
-      if (isDrawingBlueLine) {
-        // Если мы рисуем синюю линию, кликаем на штаб E
-        if (position.x === redHQ.x && position.y === redHQ.y) {
-          setIsDrawingBlueLine(false);
-          setOriginKClicked(false);
-
-          // Валидация правильности пути
-          if (validatePath([...blueLinePath, position])) {
-            setBlueLinePath([...blueLinePath, position]);
-          } else {
-            setBlueLinePath([]);
+    const moveSoldiers = () => {
+      setSoldiers(prevSoldiers => 
+        prevSoldiers.map(soldier => {
+          const segmentIndex = Math.floor(soldier.progress);
+          if (segmentIndex >= soldier.path.length - 1) {
+            return { ...soldier, progress: soldier.path.length - 1 };
           }
-        } else {
-          setBlueLinePath([]);
-          setOriginKClicked(false);
-          setIsDrawingBlueLine(false);
+          
+          const currentSegmentStart = soldier.path[segmentIndex];
+          const currentSegmentEnd = soldier.path[segmentIndex + 1];
+          
+          const t = soldier.progress - segmentIndex;
+          const nextX = currentSegmentStart.x + (currentSegmentEnd.x - currentSegmentStart.x) * t;
+          const nextY = currentSegmentStart.y + (currentSegmentEnd.y - currentSegmentStart.y) * t;
+          
+          const nextPosition: Coordinate = { x: nextX, y: nextY };
+          return { ...soldier, position: nextPosition, progress: soldier.progress + 0.0001 };
+        })
+      );
+
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          drawGrid(ctx, rows, cols, cellSize);
+          trees.forEach(tree => drawTree(ctx, tree, cellSize));
+          drawHQ(ctx, redHQ, 'red', 'E', cellSize);
+          drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);
+          if (barracks.forE) drawBarrack(ctx, barracks.forE, 'red', cellSize);
+          if (barracks.forK) drawBarrack(ctx, barracks.forK, 'blue', cellSize);
+          soldiers.forEach(soldier => drawSoldier(ctx, soldier, 'red', cellSize));
         }
-      } else {
-        // Если кликаем на казарму K, начинаем рисовать линию
-        if (barracks.forK && position.x === barracks.forK.x && position.y === barracks.forK.y) {
-          setBlueLinePath([{ x: blueHQ.x, y: blueHQ.y }]);
-          setIsDrawingBlueLine(true);
-          setOriginKClicked(true);
-        }
-      }
-    }
-  };
-
-  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (isDrawingBlueLine && canvas) {
-      const rect = canvas.getBoundingClientRect();
-      const x = Math.floor((event.clientX - rect.left) / cellSize);
-      const y = Math.floor((event.clientY - rect.top) / cellSize);
-      const position = { x, y };
-
-      const lastPoint = blueLinePath[blueLinePath.length - 1];
-
-      // Проверка, есть ли движение по прямой линии, что нет пересечения с деревьями и границ
-      if ((x !== lastPoint.x || y !== lastPoint.y) &&
-          (x === lastPoint.x || y === lastPoint.y) &&
-          !trees.some(tree => tree.x === x && tree.y === y) &&
-          !blueLinePath.some(pos => pos.x === x && pos.y === y) &&
-          x >= 0 && x < cols && y >= 0 && y < rows) {
-
-        setBlueLinePath([...blueLinePath, position]);
-      }
-    }
-  };
-
-  const validatePath = (path: Coordinate[]): boolean => {
-    for (let i = 1; i < path.length; i++) {
-      const prev = path[i - 1];
-      const curr = path[i];
-      if (!(curr.x === prev.x || curr.y === prev.y) ||
-          (Math.abs(prev.x - curr.x) > 1 || Math.abs(prev.y - curr.y) > 1)) {
-        return false;
-      }
-      
-      if (trees.some(tree => tree.x === curr.x && tree.y === curr.y)) {
-        return false;
       }
 
-      if (curr.x < 0 || curr.x >= cols || curr.y < 0 || curr.y >= rows) {
-        return false;
-      }
-    }
+      requestAnimationFrame(moveSoldiers);
+    };
 
-    return true;
-  };
+    const animationFrame = requestAnimationFrame(moveSoldiers);
+    return () => {
+      cancelAnimationFrame(animationFrame);
+    };
+  }, [soldiers, path, trees, barracks]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      onClick={handleCanvasClick}
-      onMouseMove={handleMouseMove}
-    />
-  );
+  return <canvas ref={canvasRef} />;
 };
 
 export default Game;

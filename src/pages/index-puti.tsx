@@ -1,24 +1,28 @@
 import React, { useEffect, useRef, useState } from 'react';
 
+// Определяем интерфейс для координат на поле
 interface Coordinate {
   x: number;
   y: number;
 }
 
+// Задаем константы для игры
 const cellSize = 40;  // Размер клетки в пикселях
-const rows = 9;
-const cols = 15;
-const treeCount = 20;
-const redHQ: Coordinate = { x: 2, y: 2 };
-const blueHQ: Coordinate = { x: cols - 3, y: rows - 3 };
+const rows = 9;  // Количество строк в игровом поле
+const cols = 15;  // Количество столбцов в игровом поле
+const treeCount = 20;  // Количество деревьев для генерации
+const redHQ: Coordinate = { x: 0, y: 0 };  // Координаты HQ красной команды
+const blueHQ: Coordinate = { x: cols - 1, y: rows - 1 };  // Координаты HQ синей команды
 
+// Определяем возможные направления для передвижения на сетке
 const directions = [
-  { x: 1, y: 0 },
+  { x: 1, y: 0 }, 
   { x: -1, y: 0 },
   { x: 0, y: 1 },
   { x: 0, y: -1 },
 ];
 
+// Функция для генерации случайных координат для деревьев
 const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coordinate[]): Coordinate[] => {
   const trees: Coordinate[] = [];
   while (trees.length < count) {
@@ -32,6 +36,7 @@ const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coo
   return trees;
 };
 
+// Находим свободную соседнюю клетку для размещения бараков
 const findFreeAdjacentCell = (position: Coordinate, occupiedCells: Coordinate[], rows: number, cols: number): Coordinate | null => {
   for (const direction of directions) {
     const adjacent = { x: position.x + direction.x, y: position.y + direction.y };
@@ -43,6 +48,7 @@ const findFreeAdjacentCell = (position: Coordinate, occupiedCells: Coordinate[],
   return null;
 };
 
+// Функция для отрисовки сетки на канвасе
 const drawGrid = (ctx: CanvasRenderingContext2D, rows: number, cols: number, cellSize: number) => {
   ctx.strokeStyle = 'black';
   for (let x = 0; x <= cols; x++) {
@@ -56,27 +62,24 @@ const drawGrid = (ctx: CanvasRenderingContext2D, rows: number, cols: number, cel
   ctx.stroke();
 };
 
+// Функция для отрисовки деревьев
 const drawTree = (ctx: CanvasRenderingContext2D, tree: Coordinate, cellSize: number) => {
   ctx.fillStyle = 'green';
   ctx.fillRect(tree.x * cellSize, tree.y * cellSize, cellSize, cellSize);
-
-  ctx.fillStyle = 'white';
-  ctx.font = '20px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('W', tree.x * cellSize + cellSize / 2, tree.y * cellSize + cellSize / 2);
 };
 
+// Функция для отрисовки штабов (HQ)
 const drawHQ = (ctx: CanvasRenderingContext2D, hq: Coordinate, color: string, symbol: string, cellSize: number) => {
-  ctx.fillStyle = color;
-  ctx.fillRect(hq.x * cellSize, hq.y * cellSize, cellSize, cellSize);
-  ctx.fillStyle = 'white';
-  ctx.font = '20px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(symbol, hq.x * cellSize + cellSize / 2, hq.y * cellSize + cellSize / 2);
+  ctx.fillStyle = color;  // Задаем цвет для HQ
+  ctx.fillRect(hq.x * cellSize, hq.y * cellSize, cellSize, cellSize);  // Рисуем HQ
+  ctx.fillStyle = 'white';  // Задаем цвет текста
+  ctx.font = '20px Arial';  // Задаем шрифт текста
+  ctx.textAlign = 'center';  // Выравнивание текста по центру
+  ctx.textBaseline = 'middle';  // Выравнивание текста по вертикали
+  ctx.fillText(symbol, hq.x * cellSize + cellSize / 2, hq.y * cellSize + cellSize / 2);  // Рисуем символ внутри HQ
 };
 
+// Функция для отрисовки бараков
 const drawBarrack = (ctx: CanvasRenderingContext2D, barrack: Coordinate, color: string, cellSize: number) => {
   ctx.fillStyle = color;
   ctx.fillRect(barrack.x * cellSize, barrack.y * cellSize, cellSize, cellSize);
@@ -84,10 +87,12 @@ const drawBarrack = (ctx: CanvasRenderingContext2D, barrack: Coordinate, color: 
   ctx.strokeRect(barrack.x * cellSize, barrack.y * cellSize, cellSize, cellSize);
 };
 
+// Эвристическая функция для алгоритма A*
 const heuristic = (a: Coordinate, b: Coordinate): number => {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 };
 
+// Алгоритм поиска пути A*
 const findPathAStar = (start: Coordinate, goal: Coordinate, obstacles: Coordinate[], rows: number, cols: number): Coordinate[] => {
   const closedSet: Coordinate[] = [];
   const openSet: Coordinate[] = [start];
@@ -163,12 +168,13 @@ const findPathAStar = (start: Coordinate, goal: Coordinate, obstacles: Coordinat
   return [];
 };
 
-const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cellSize: number, color: string) => {
+// Функция для отрисовки пути на канвасе
+const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cellSize: number) => {
   if (currentPath.length > 0) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'red';  // Задаем цвет для пути
+    ctx.lineWidth = 2;  // Задаем ширину линии
     ctx.beginPath();
-    ctx.setLineDash([5, 5]);  // пунктирная линия
+    ctx.setLineDash([5, 5]);  // Пунктирная линия
     ctx.moveTo(currentPath[0].x * cellSize + cellSize / 2, currentPath[0].y * cellSize + cellSize / 2);
     currentPath.forEach(pos => ctx.lineTo(pos.x * cellSize + cellSize / 2, pos.y * cellSize + cellSize / 2));
     ctx.stroke();
@@ -181,9 +187,6 @@ const Game: React.FC = () => {
   const [trees, setTrees] = useState<Coordinate[]>([]);
   const [barracks, setBarracks] = useState<{ forE: Coordinate | null, forK: Coordinate | null }>({ forE: null, forK: null });
   const [requestId, setRequestId] = useState<number | null>(null);
-  const [isDrawingBlueLine, setIsDrawingBlueLine] = useState<boolean>(false);
-  const [blueLinePath, setBlueLinePath] = useState<Coordinate[]>([]);
-  const [originKClicked, setOriginKClicked] = useState<boolean>(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -255,98 +258,12 @@ const Game: React.FC = () => {
         drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);
         if (barracks.forE) drawBarrack(ctx, barracks.forE, 'red', cellSize);
         if (barracks.forK) drawBarrack(ctx, barracks.forK, 'blue', cellSize);
-        drawPath(ctx, animationPath, cellSize, 'red');
-        drawPath(ctx, blueLinePath, cellSize, 'blue');
+        drawPath(ctx, animationPath, cellSize);
       }
     }
-  }, [animationPath, trees, barracks, blueLinePath]);
+  }, [animationPath, trees, barracks]);
 
-  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const rect = canvas.getBoundingClientRect();
-      const x = Math.floor((event.clientX - rect.left) / cellSize);
-      const y = Math.floor((event.clientY - rect.top) / cellSize);
-      const position = { x, y };
-
-      if (isDrawingBlueLine) {
-        // Если мы рисуем синюю линию, кликаем на штаб E
-        if (position.x === redHQ.x && position.y === redHQ.y) {
-          setIsDrawingBlueLine(false);
-          setOriginKClicked(false);
-
-          // Валидация правильности пути
-          if (validatePath([...blueLinePath, position])) {
-            setBlueLinePath([...blueLinePath, position]);
-          } else {
-            setBlueLinePath([]);
-          }
-        } else {
-          setBlueLinePath([]);
-          setOriginKClicked(false);
-          setIsDrawingBlueLine(false);
-        }
-      } else {
-        // Если кликаем на казарму K, начинаем рисовать линию
-        if (barracks.forK && position.x === barracks.forK.x && position.y === barracks.forK.y) {
-          setBlueLinePath([{ x: blueHQ.x, y: blueHQ.y }]);
-          setIsDrawingBlueLine(true);
-          setOriginKClicked(true);
-        }
-      }
-    }
-  };
-
-  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (isDrawingBlueLine && canvas) {
-      const rect = canvas.getBoundingClientRect();
-      const x = Math.floor((event.clientX - rect.left) / cellSize);
-      const y = Math.floor((event.clientY - rect.top) / cellSize);
-      const position = { x, y };
-
-      const lastPoint = blueLinePath[blueLinePath.length - 1];
-
-      // Проверка, есть ли движение по прямой линии, что нет пересечения с деревьями и границ
-      if ((x !== lastPoint.x || y !== lastPoint.y) &&
-          (x === lastPoint.x || y === lastPoint.y) &&
-          !trees.some(tree => tree.x === x && tree.y === y) &&
-          !blueLinePath.some(pos => pos.x === x && pos.y === y) &&
-          x >= 0 && x < cols && y >= 0 && y < rows) {
-
-        setBlueLinePath([...blueLinePath, position]);
-      }
-    }
-  };
-
-  const validatePath = (path: Coordinate[]): boolean => {
-    for (let i = 1; i < path.length; i++) {
-      const prev = path[i - 1];
-      const curr = path[i];
-      if (!(curr.x === prev.x || curr.y === prev.y) ||
-          (Math.abs(prev.x - curr.x) > 1 || Math.abs(prev.y - curr.y) > 1)) {
-        return false;
-      }
-      
-      if (trees.some(tree => tree.x === curr.x && tree.y === curr.y)) {
-        return false;
-      }
-
-      if (curr.x < 0 || curr.x >= cols || curr.y < 0 || curr.y >= rows) {
-        return false;
-      }
-    }
-
-    return true;
-  };
-
-  return (
-    <canvas
-      ref={canvasRef}
-      onClick={handleCanvasClick}
-      onMouseMove={handleMouseMove}
-    />
-  );
+  return <canvas ref={canvasRef} />;
 };
 
 export default Game;
