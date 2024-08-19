@@ -1,213 +1,225 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const GRID_WIDTH = 16;
-const GRID_HEIGHT = 9;
-const CELL_SIZE = 50;
-
-const PLAYER_BASE_HEALTH = 2000;
-const ENEMY_BASE_HEALTH = 1100;
-
-const UNIT_SPEED_PLAYER = 100; // px per second
-const UNIT_SPEED_ENEMY = 50; // px per second
-
-interface Point {
+interface Coordinate {
   x: number;
   y: number;
 }
 
-interface Unit {
-  path: Point[];
-  position: number;
-  type: 'player' | 'enemy';
-}
+const cellSize = 40;  // Размер клетки в пикселях
+const rows = 9;
+const cols = 15;
+const treeCount = 20;
+const redHQ: Coordinate = { x: 0, y: 0 };
+const blueHQ: Coordinate = { x: cols - 1, y: rows - 1 };
 
-interface Base {
-  x: number;
-  y: number;
-  health: number;
-  type: 'player' | 'enemy';
-}
+const generateRandomTrees = (count: number, rows: number, cols: number): Coordinate[] => {
+  const trees: Coordinate[] = [];
+  while (trees.length < count) {
+    const x = Math.floor(Math.random() * cols);
+    const y = Math.floor(Math.random() * rows);
+    const isHQ = (x === redHQ.x && y === redHQ.y) || (x === blueHQ.x && y === blueHQ.y);
+    if (!isHQ && !trees.some(tree => tree.x === x && tree.y === y)) {
+      trees.push({ x, y });
+    }
+  }
+  return trees;
+};
 
-interface Barrack {
-  x: number;
-  y: number;
-  type: 'player' | 'enemy';
-}
+const drawGrid = (ctx: CanvasRenderingContext2D, rows: number, cols: number, cellSize: number) => {
+  ctx.strokeStyle = 'black';
+  for (let x = 0; x <= cols; x++) {
+    ctx.moveTo(x * cellSize, 0);
+    ctx.lineTo(x * cellSize, rows * cellSize);
+  }
+  for (let y = 0; y <= rows; y++) {
+    ctx.moveTo(0, y * cellSize);
+    ctx.lineTo(cols * cellSize, y * cellSize);
+  }
+  ctx.stroke();
+};
+
+const drawTree = (ctx: CanvasRenderingContext2D, tree: Coordinate, cellSize: number) => {
+  ctx.fillStyle = 'green';
+  ctx.fillRect(tree.x * cellSize, tree.y * cellSize, cellSize, cellSize);
+};
+
+const drawHQ = (ctx: CanvasRenderingContext2D, hq: Coordinate, color: string, symbol: string, cellSize: number) => {
+  ctx.fillStyle = color;
+  ctx.fillRect(hq.x * cellSize, hq.y * cellSize, cellSize, cellSize);
+  ctx.fillStyle = 'white';
+  ctx.font = '20px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(symbol, hq.x * cellSize + cellSize / 2, hq.y * cellSize + cellSize / 2);
+};
+
+const heuristic = (a: Coordinate, b: Coordinate): number => {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+};
+
+const findPathAStar = (start: Coordinate, goal: Coordinate, obstacles: Coordinate[], rows: number, cols: number): Coordinate[] => {
+  const closedSet: Coordinate[] = [];
+  const openSet: Coordinate[] = [start];
+  const cameFrom: Map<string, Coordinate> = new Map();
+
+  const gScore: Map<string, number> = new Map();
+  gScore.set(`${start.x},${start.y}`, 0);
+
+  const fScore: Map<string, number> = new Map();
+  fScore.set(`${start.x},${start.y}`, heuristic(start, goal));
+
+  const isObstacle = (x: number, y: number): boolean => {
+    return obstacles.some(ob => ob.x === x && ob.y === y);
+  };
+
+  const neighbors = (node: Coordinate): Coordinate[] => {
+    const neighborList: Coordinate[] = [
+      { x: node.x + 1, y: node.y },
+      { x: node.x - 1, y: node.y },
+      { x: node.x, y: node.y + 1 },
+      { x: node.x, y: node.y - 1 }
+    ];
+
+    return neighborList.filter(neighbor => 
+      neighbor.x >= 0 && neighbor.x < cols && 
+      neighbor.y >= 0 && neighbor.y < rows && 
+      !isObstacle(neighbor.x, neighbor.y)
+    );
+  };
+
+  const getNodeKey = (node: Coordinate): string => `${node.x},${node.y}`;
+
+  while (openSet.length > 0) {
+    openSet.sort((a, b) => {
+      const aFScore = fScore.get(getNodeKey(a)) || Infinity;
+      const bFScore = fScore.get(getNodeKey(b)) || Infinity;
+      return aFScore - bFScore;
+    });
+
+    const current = openSet.shift() as Coordinate;
+
+    if (current.x === goal.x && current.y === goal.y) {
+      let path: Coordinate[] = [];
+      let temp = current;
+      while (temp) {
+        path.push(temp);
+        temp = cameFrom.get(getNodeKey(temp)) as Coordinate;
+      }
+      return path.reverse();
+    }
+
+    closedSet.push(current);
+
+    neighbors(current).forEach(neighbor => {
+      if (closedSet.some(closedNode => closedNode.x === neighbor.x && closedNode.y === neighbor.y)) {
+        return;
+      }
+
+      const tentativeGScore = (gScore.get(getNodeKey(current)) || Infinity) + 1;
+
+      if (!openSet.some(openNode => openNode.x === neighbor.x && openNode.y === neighbor.y)) {
+        openSet.push(neighbor);
+      } else if (tentativeGScore >= (gScore.get(getNodeKey(neighbor)) || Infinity)) {
+        return;
+      }
+
+      cameFrom.set(getNodeKey(neighbor), current);
+      gScore.set(getNodeKey(neighbor), tentativeGScore);
+      fScore.set(getNodeKey(neighbor), tentativeGScore + heuristic(neighbor, goal));
+    });
+  }
+
+  return [];
+};
+
+const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cellSize: number) => {
+  if (currentPath.length > 0) {
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.setLineDash([5, 5]);  // пунктирная линия
+    ctx.moveTo(currentPath[0].x * cellSize + cellSize / 2, currentPath[0].y * cellSize + cellSize / 2);
+    currentPath.forEach(pos => ctx.lineTo(pos.x * cellSize + cellSize / 2, pos.y * cellSize + cellSize / 2));
+    ctx.stroke();
+  }
+};
 
 const Game: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [playerBase] = useState<Base>({ x: 1, y: 1, health: PLAYER_BASE_HEALTH, type: 'player' });
-  const [enemyBase] = useState<Base>({ x: GRID_WIDTH - 2, y: GRID_HEIGHT - 2, health: ENEMY_BASE_HEALTH, type: 'enemy' });
-  const [playerBarracks, setPlayerBarracks] = useState<Barrack[]>([
-    { x: 1, y: 2, type: 'player' },
-    { x: 1, y: 3, type: 'player' },
-    { x: 1, y: 4, type: 'player' },
-    { x: 1, y: 5, type: 'player' }
-  ]);
-  const [enemyBarracks, setEnemyBarracks] = useState<Barrack[]>([
-    { x: GRID_WIDTH - 2, y: GRID_HEIGHT - 3, type: 'enemy' }
-  ]);
-
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [isPathCreating, setIsPathCreating] = useState<boolean>(false);
-  const [currentPath, setCurrentPath] = useState<Point[]>([]);
+  const [animationPath, setAnimationPath] = useState<Coordinate[]>([]);
+  const [trees, setTrees] = useState<Coordinate[]>([]);
+  const [requestId, setRequestId] = useState<number | null>(null);
 
   useEffect(() => {
-    const addEnemyBarracks = () => {
-      setEnemyBarracks((prev) => {
-        const newBarrackX = GRID_WIDTH - 2;
-        const newBarrackY = GRID_HEIGHT - (3 + prev.length);
-        return prev.length < 4
-          ? [...prev, { x: newBarrackX, y: newBarrackY, type: 'enemy' }]
-          : prev;
-      });
-    };
-    const interval = setInterval(() => {
-      addEnemyBarracks();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [enemyBarracks]);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        canvas.width = cols * cellSize;
+        canvas.height = rows * cellSize;
 
-  useEffect(() => {
-    const ctx = canvasRef.current!.getContext('2d')!;
-    const canvas = canvasRef.current!;
+        const newTrees = generateRandomTrees(treeCount, rows, cols);
+        setTrees(newTrees);
 
-    const drawGrid = () => {
-      for (let x = 0; x < canvas.width; x += CELL_SIZE) {
-        for (let y = 0; y < canvas.height; y += CELL_SIZE) {
-          ctx.strokeStyle = '#ccc';
-          ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
-        }
-      }
-    };
+        const render = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const drawBasesAndBarracks = () => {
-      ctx.fillStyle = 'blue';
-      ctx.fillRect(playerBase.x * CELL_SIZE, playerBase.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          drawGrid(ctx, rows, cols, cellSize);
 
-      ctx.fillStyle = 'red';
-      ctx.fillRect(enemyBase.x * CELL_SIZE, enemyBase.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          newTrees.forEach(tree => drawTree(ctx, tree, cellSize));
 
-      ctx.fillStyle = 'lightblue';
-      playerBarracks.forEach(barrack => {
-        ctx.fillRect(barrack.x * CELL_SIZE, barrack.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      });
+          drawHQ(ctx, redHQ, 'red', 'E', cellSize);
+          drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);
+        };
 
-      ctx.fillStyle = 'orange';
-      enemyBarracks.forEach(barrack => {
-        ctx.fillRect(barrack.x * CELL_SIZE, barrack.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      });
-    };
+        render();
 
-    const drawUnits = () => {
-      units.forEach(unit => {
-        const stepIndex = Math.floor(unit.position);
-        const nextStepIndex = Math.min(stepIndex + 1, unit.path.length - 1);
+        const path = findPathAStar(redHQ, blueHQ, newTrees, rows, cols);
+        let startTime: number | null = null;
 
-        const currentStep = unit.path[stepIndex];
-        const nextStep = unit.path[nextStepIndex];
+        const animatePath = (timestamp: number) => {
+          if (!startTime) startTime = timestamp;
+          const progress = timestamp - startTime;
 
-        const t = unit.position - stepIndex;
-
-        const x = currentStep.x * (1 - t) + nextStep.x * t;
-        const y = currentStep.y * (1 - t) + nextStep.y * t;
-
-        ctx.fillStyle = unit.type === 'player' ? 'lightblue' : 'orange';
-
-        ctx.beginPath();
-        ctx.arc(
-          x * CELL_SIZE + CELL_SIZE / 2,
-          y * CELL_SIZE + CELL_SIZE / 2,
-          CELL_SIZE / 4,
-          0,
-          2 * Math.PI
-        );
-        ctx.fill();
-      });
-    };
-
-    const updateUnits = (timeElapsed: number) => {
-      setUnits(prev => {
-        return prev.map(unit => {
-          const speed = unit.type === 'player' ? UNIT_SPEED_PLAYER : UNIT_SPEED_ENEMY;
-          const newPos = unit.position + (speed * timeElapsed) / 1000;
-          if (newPos >= unit.path.length - 1) {
-            return null;
+          const step = Math.floor(progress / 100);  // обновляем каждые 100 мс
+          
+          if (step < path.length) {
+            setAnimationPath(path.slice(0, step + 1));
+            const reqId = requestAnimationFrame(animatePath);
+            setRequestId(reqId);
+          } else {
+            cancelAnimationFrame(requestId as number);
+            setRequestId(null);
           }
-          return { ...unit, position: newPos };
-        }).filter(unit => unit !== null) as Unit[];
-      });
-    };
+        };
 
-    const render = (prevTime: number) => {
-      const now = performance.now();
-      const timeElapsed = now - prevTime;
+        const reqId = requestAnimationFrame(animatePath);
+        setRequestId(reqId);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawGrid();
-      drawBasesAndBarracks();
-      drawUnits();
-      updateUnits(timeElapsed);
-      
-      requestAnimationFrame(() => render(now));
-    };
-
-    requestAnimationFrame((time) => render(time));
-
-  }, [units, isPathCreating, currentPath]);
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
-    const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
-
-    if (playerBarracks.some(barrack => barrack.x === x && barrack.y === y)) {
-      setIsPathCreating(true);
-      setCurrentPath([{ x, y }]);
+        return () => {
+          if (requestId) {
+            cancelAnimationFrame(requestId);
+          }
+        };
+      }
     }
-  };
+  }, []);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
-    if (!isPathCreating) return;
-  
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
-    const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
-  
-    setCurrentPath(prevPath => {
-      if (prevPath.some(point => point.x === x && point.y === y)) return prevPath;
-      return [...prevPath, { x, y }];
-    });
-  };
-
-  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
-    if (!isPathCreating) return;
-  
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
-    const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
-  
-    if (x === enemyBase.x && y === enemyBase.y) {
-      setUnits(prev => [...prev, { path: [...currentPath, { x, y }], position: 0, type: 'player' }]);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        drawGrid(ctx, rows, cols, cellSize);
+        trees.forEach(tree => drawTree(ctx, tree, cellSize));
+        drawHQ(ctx, redHQ, 'red', 'E', cellSize);
+        drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);
+        drawPath(ctx, animationPath, cellSize);
+      }
     }
-  
-    setIsPathCreating(false);
-    setCurrentPath([]);
-  };
+  }, [animationPath, trees]);
 
-  return (
-    <div>
-      <canvas
-        ref={canvasRef}
-        width={GRID_WIDTH * CELL_SIZE}
-        height={GRID_HEIGHT * CELL_SIZE}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-      />
-      <button onClick={() => window.location.reload()}>Restart</button>
-    </div>
-  );
+  return <canvas ref={canvasRef} />;
 };
 
 export default Game;
