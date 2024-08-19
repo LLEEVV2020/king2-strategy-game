@@ -7,7 +7,8 @@ interface Coordinate {
 
 interface Soldier {
   position: Coordinate;
-  index: number;
+  path: Coordinate[];
+  progress: number; // 0 (start of segment) to 1 (end of segment)
 }
 
 const cellSize = 40;  // Размер клетки в пикселях
@@ -185,11 +186,9 @@ const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cell
 
 const Game: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [animationPath, setAnimationPath] = useState<Coordinate[]>([]);
   const [trees, setTrees] = useState<Coordinate[]>([]);
   const [barracks, setBarracks] = useState<{ forE: Coordinate | null, forK: Coordinate | null }>({ forE: null, forK: null });
   const [soldiers, setSoldiers] = useState<Soldier[]>([]);
-  const [requestId, setRequestId] = useState<number | null>(null);
   const [path, setPath] = useState<Coordinate[]>([]);
 
   useEffect(() => {
@@ -208,50 +207,17 @@ const Game: React.FC = () => {
         const freeCellForBlue = findFreeAdjacentCell(blueHQ, [...newTrees, ...allHqs], rows, cols);
         setBarracks({ forE: freeCellForRed, forK: freeCellForBlue });
 
-        const render = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          drawGrid(ctx, rows, cols, cellSize);
-          newTrees.forEach(tree => drawTree(ctx, tree, cellSize));
-          drawHQ(ctx, redHQ, 'red', 'E', cellSize);
-          drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);
-          if (freeCellForRed) drawBarrack(ctx, freeCellForRed, 'red', cellSize);
-          if (freeCellForBlue) drawBarrack(ctx, freeCellForBlue, 'blue', cellSize);
-        };
-
-        render();
-
         const foundPath = findPathAStar(redHQ, blueHQ, newTrees, rows, cols);
         setPath(foundPath);
 
-        let startTime: number | null = null;
-
-        const animatePath = (timestamp: number) => {
-          if (!startTime) startTime = timestamp;
-          const progress = timestamp - startTime;
-
-          const step = Math.floor(progress / 100);  // обновляем каждые 100 мс
-          
-          if (step < foundPath.length) {
-            setAnimationPath(foundPath.slice(0, step + 1));
-            const reqId = requestAnimationFrame(animatePath);
-            setRequestId(reqId);
-          } else {
-            cancelAnimationFrame(requestId as number);
-            setRequestId(null);
-          }
-        };
-
-        const reqId = requestAnimationFrame(animatePath);
-        setRequestId(reqId);
-
         const soldierInterval = setInterval(() => {
-          setSoldiers(prev => [...prev, { position: redHQ, index: 0 }]);
+          setSoldiers(prev => [
+            ...prev,
+            { position: redHQ, path: foundPath, progress: 0 }
+          ]);
         }, 6000);
 
         return () => {
-          if (requestId) {
-            cancelAnimationFrame(requestId);
-          }
           clearInterval(soldierInterval);
         };
       }
@@ -259,36 +225,49 @@ const Game: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      setSoldiers(prevSoldiers =>
+    const moveSoldiers = () => {
+      setSoldiers(prevSoldiers => 
         prevSoldiers.map(soldier => {
-          if (soldier.index < path.length - 1) {
-            return { ...soldier, index: soldier.index + 0.25 };
+          const segmentIndex = Math.floor(soldier.progress);
+          if (segmentIndex >= soldier.path.length - 1) {
+            return { ...soldier, progress: soldier.path.length - 1 };
           }
-          return soldier;
+          
+          const currentSegmentStart = soldier.path[segmentIndex];
+          const currentSegmentEnd = soldier.path[segmentIndex + 1];
+          
+          const t = soldier.progress - segmentIndex;
+          const nextX = currentSegmentStart.x + (currentSegmentEnd.x - currentSegmentStart.x) * t;
+          const nextY = currentSegmentStart.y + (currentSegmentEnd.y - currentSegmentStart.y) * t;
+          
+          const nextPosition: Coordinate = { x: nextX, y: nextY };
+          return { ...soldier, position: nextPosition, progress: soldier.progress + 0.0001 };
         })
       );
-    }, 1000);
 
-    return () => clearInterval(intervalId);
-  }, [path]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        drawGrid(ctx, rows, cols, cellSize);
-        trees.forEach(tree => drawTree(ctx, tree, cellSize));
-        drawHQ(ctx, redHQ, 'red', 'E', cellSize);
-        drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);
-        if (barracks.forE) drawBarrack(ctx, barracks.forE, 'red', cellSize);
-        if (barracks.forK) drawBarrack(ctx, barracks.forK, 'blue', cellSize);
-        drawPath(ctx, animationPath, cellSize);
-        soldiers.forEach(soldier => drawSoldier(ctx, { position: path[Math.floor(soldier.index)] || soldier.position, index: soldier.index }, 'red', cellSize));
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          drawGrid(ctx, rows, cols, cellSize);
+          trees.forEach(tree => drawTree(ctx, tree, cellSize));
+          drawHQ(ctx, redHQ, 'red', 'E', cellSize);
+          drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);
+          if (barracks.forE) drawBarrack(ctx, barracks.forE, 'red', cellSize);
+          if (barracks.forK) drawBarrack(ctx, barracks.forK, 'blue', cellSize);
+          soldiers.forEach(soldier => drawSoldier(ctx, soldier, 'red', cellSize));
+        }
       }
-    }
-  }, [animationPath, trees, barracks, soldiers]);
+
+      requestAnimationFrame(moveSoldiers);
+    };
+
+    const animationFrame = requestAnimationFrame(moveSoldiers);
+    return () => {
+      cancelAnimationFrame(animationFrame);
+    };
+  }, [soldiers, path, trees, barracks]);
 
   return <canvas ref={canvasRef} />;
 };
