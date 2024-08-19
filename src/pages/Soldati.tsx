@@ -184,7 +184,7 @@ const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cell
   }
 };
 
-const Game: React.FC = () => {
+const Soldati: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [trees, setTrees] = useState<Coordinate[]>([]);
   const [barracks, setBarracks] = useState<{ forE: Coordinate | null, forK: Coordinate | null }>({ forE: null, forK: null });
@@ -272,4 +272,4 @@ const Game: React.FC = () => {
   return <canvas ref={canvasRef} />;
 };
 
-export default Game;
+export default Soldati;
