@@ -1,35 +1,39 @@
 import React, { useEffect, useRef, useState } from 'react';
 
+// Интерфейс для координат
 interface Coordinate {
   x: number;
   y: number;
 }
 
+// Интерфейс для солдатов
 interface Soldier {
   position: Coordinate;
-  path: Coordinate[];
-  progress: number; // 0 (start of segment) to 1 (end of segment)
+  path: Coordinate[]; // Путь, который должен пройти солдат
+  progress: number; // Прогресс движения солдата по пути: от 0 (начало) до 1 (конец)
 }
 
 const cellSize = 40;  // Размер клетки в пикселях
-const rows = 9;
-const cols = 15;
-const treeCount = 20;
-const redHQ: Coordinate = { x: 2, y: 2 };
-const blueHQ: Coordinate = { x: cols - 3, y: rows - 3 };
+const rows = 9; // Количество рядов на игровом поле
+const cols = 15; // Количество колонок на игровом поле
+const treeCount = 20; // Количество деревьев на карте
+const redHQ: Coordinate = { x: 2, y: 2 }; // Координаты штаб-квартиры красных
+const blueHQ: Coordinate = { x: cols - 3, y: rows - 3 }; // Координаты штаб-квартиры синих
 
 const directions = [
-  { x: 1, y: 0 },
-  { x: -1, y: 0 },
-  { x: 0, y: 1 },
-  { x: 0, y: -1 },
+  { x: 1, y: 0 }, // Вправо
+  { x: -1, y: 0 }, // Влево
+  { x: 0, y: 1 }, // Вниз
+  { x: 0, y: -1 }, // Вверх
 ];
 
+// Генерация случайных деревьев на карте
 const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coordinate[]): Coordinate[] => {
   const trees: Coordinate[] = [];
   while (trees.length < count) {
     const x = Math.floor(Math.random() * cols);
     const y = Math.floor(Math.random() * rows);
+    // Проверка, что сгенерированное дерево не попадает на место штаб-квартиры
     const isHQ = hqs.some(hq => hq.x === x && hq.y === y);
     if (!isHQ && !trees.some(tree => tree.x === x && tree.y === y)) {
       trees.push({ x, y });
@@ -38,9 +42,11 @@ const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coo
   return trees;
 };
 
+// Поиск свободной соседней клетки
 const findFreeAdjacentCell = (position: Coordinate, occupiedCells: Coordinate[], rows: number, cols: number): Coordinate | null => {
   for (const direction of directions) {
     const adjacent = { x: position.x + direction.x, y: position.y + direction.y };
+    // Проверка, что клетка в пределах поля и не занята
     if (adjacent.x >= 0 && adjacent.x < cols && adjacent.y >= 0 && adjacent.y < rows && 
       !occupiedCells.some(cell => cell.x === adjacent.x && cell.y === adjacent.y)) {
       return adjacent;
@@ -49,6 +55,7 @@ const findFreeAdjacentCell = (position: Coordinate, occupiedCells: Coordinate[],
   return null;
 };
 
+// Отрисовка сетки на игровом поле
 const drawGrid = (ctx: CanvasRenderingContext2D, rows: number, cols: number, cellSize: number) => {
   ctx.strokeStyle = 'black';
   for (let x = 0; x <= cols; x++) {
@@ -62,11 +69,13 @@ const drawGrid = (ctx: CanvasRenderingContext2D, rows: number, cols: number, cel
   ctx.stroke();
 };
 
+// Отрисовка дерева
 const drawTree = (ctx: CanvasRenderingContext2D, tree: Coordinate, cellSize: number) => {
   ctx.fillStyle = 'green';
   ctx.fillRect(tree.x * cellSize, tree.y * cellSize, cellSize, cellSize);
 };
 
+// Отрисовка штаб-квартиры
 const drawHQ = (ctx: CanvasRenderingContext2D, hq: Coordinate, color: string, symbol: string, cellSize: number) => {
   ctx.fillStyle = color;
   ctx.fillRect(hq.x * cellSize, hq.y * cellSize, cellSize, cellSize);
@@ -77,6 +86,7 @@ const drawHQ = (ctx: CanvasRenderingContext2D, hq: Coordinate, color: string, sy
   ctx.fillText(symbol, hq.x * cellSize + cellSize / 2, hq.y * cellSize + cellSize / 2);
 };
 
+// Отрисовка казармы
 const drawBarrack = (ctx: CanvasRenderingContext2D, barrack: Coordinate, color: string, cellSize: number) => {
   ctx.fillStyle = color;
   ctx.fillRect(barrack.x * cellSize, barrack.y * cellSize, cellSize, cellSize);
@@ -84,6 +94,7 @@ const drawBarrack = (ctx: CanvasRenderingContext2D, barrack: Coordinate, color: 
   ctx.strokeRect(barrack.x * cellSize, barrack.y * cellSize, cellSize, cellSize);
 };
 
+// Отрисовка солдата
 const drawSoldier = (ctx: CanvasRenderingContext2D, soldier: Soldier, color: string, cellSize: number) => {
   ctx.fillStyle = color;
   const centerX = soldier.position.x * cellSize + cellSize / 2;
@@ -93,10 +104,12 @@ const drawSoldier = (ctx: CanvasRenderingContext2D, soldier: Soldier, color: str
   ctx.fill();
 };
 
+// Евклидово расстояние для поиска пути
 const heuristic = (a: Coordinate, b: Coordinate): number => {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 };
 
+// A* алгоритм для поиска пути
 const findPathAStar = (start: Coordinate, goal: Coordinate, obstacles: Coordinate[], rows: number, cols: number): Coordinate[] => {
   const closedSet: Coordinate[] = [];
   const openSet: Coordinate[] = [start];
@@ -112,6 +125,7 @@ const findPathAStar = (start: Coordinate, goal: Coordinate, obstacles: Coordinat
     return obstacles.some(ob => ob.x === x && ob.y === y);
   };
 
+  // Поиск соседних клеток
   const neighbors = (node: Coordinate): Coordinate[] => {
     const neighborList: Coordinate[] = [
       { x: node.x + 1, y: node.y },
@@ -172,6 +186,7 @@ const findPathAStar = (start: Coordinate, goal: Coordinate, obstacles: Coordinat
   return [];
 };
 
+// Отрисовка пути
 const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cellSize: number) => {
   if (currentPath.length > 0) {
     ctx.strokeStyle = 'red';

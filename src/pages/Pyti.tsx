@@ -267,3 +267,16 @@ const Puty: React.FC = () => {
 };
 
 export default Puty;
+
+//import React, { useEffect, useRef, useState } from 'react';
+
+// Основной компонент игры
+/*const Game: React.FC = () => {
+ 
+  return (
+    <canvas
+    />
+  );
+};
+
+export default Game;*/
