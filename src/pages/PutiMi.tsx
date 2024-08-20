@@ -327,17 +327,19 @@ const Game: React.FC = () => {
       const x = Math.floor((event.clientX - rect.left) / cellSize);
       const y = Math.floor((event.clientY - rect.top) / cellSize);
       const position = { x, y };
-
+  
       const lastPoint = blueLinePath[blueLinePath.length - 1];
-
+  
       // Проверка, есть ли движение по прямой линии, отсутствие пересечения с деревьями и границ
       if ((x !== lastPoint.x || y !== lastPoint.y) &&
           (x === lastPoint.x || y === lastPoint.y) &&
           !trees.some(tree => tree.x === x && tree.y === y) &&
-          !blueLinePath.some(pos => pos.x === x && pos.y === y) &&
           x >= 0 && x < cols && y >= 0 && y < rows) {
-
-        setBlueLinePath([...blueLinePath, position]);
+  
+        const newPath = [...blueLinePath, position];
+        if (validatePath(newPath)) {
+          setBlueLinePath(newPath);
+        }
       }
     }
   };
@@ -351,16 +353,18 @@ const Game: React.FC = () => {
           (Math.abs(prev.x - curr.x) > 1 || Math.abs(prev.y - curr.y) > 1)) {
         return false;
       }
-      
+  
+      // Проверка если путь пересекает дерево
       if (trees.some(tree => tree.x === curr.x && tree.y === curr.y)) {
         return false;
       }
-
+  
+      // Проверка границ
       if (curr.x < 0 || curr.x >= cols || curr.y < 0 || curr.y >= rows) {
         return false;
       }
     }
-
+  
     return true;
   };
 
