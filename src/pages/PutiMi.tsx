@@ -51,6 +51,7 @@ const findFreeAdjacentCell = (position: Coordinate, occupiedCells: Coordinate[],
 // Функция рисования сетки на канвасе
 const drawGrid = (ctx: CanvasRenderingContext2D, rows: number, cols: number, cellSize: number) => {
   ctx.strokeStyle = 'black';
+  ctx.setLineDash([1, 5]);  // сплошная линия
   for (let x = 0; x <= cols; x++) {
     ctx.moveTo(x * cellSize, 0);
     ctx.lineTo(x * cellSize, rows * cellSize);
@@ -210,17 +211,19 @@ const Game: React.FC = () => {
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
+        //  Настройка размеров холста
         canvas.width = cols * cellSize;
         canvas.height = rows * cellSize;
-
+  
+        // Генерируйте деревья и находите свободные соседние ячейки
         const allHqs = [redHQ, blueHQ];
         const newTrees = generateRandomTrees(treeCount, rows, cols, allHqs);
         setTrees(newTrees);
-
+  
         const freeCellForRed = findFreeAdjacentCell(redHQ, [...newTrees, ...allHqs], rows, cols);
         const freeCellForBlue = findFreeAdjacentCell(blueHQ, [...newTrees, ...allHqs], rows, cols);
         setBarracks({ forE: freeCellForRed, forK: freeCellForBlue });
-
+  
         const render = () => {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           drawGrid(ctx, rows, cols, cellSize);
@@ -230,31 +233,33 @@ const Game: React.FC = () => {
           if (freeCellForRed) drawBarrack(ctx, freeCellForRed, 'red', cellSize);
           if (freeCellForBlue) drawBarrack(ctx, freeCellForBlue, 'blue', cellSize);
         };
-
+  
         render();
-
+  
         const path = findPathAStar(redHQ, blueHQ, newTrees, rows, cols);
         let startTime: number | null = null;
-
+  
         const animatePath = (timestamp: number) => {
           if (!startTime) startTime = timestamp;
           const progress = timestamp - startTime;
-
+  
           const step = Math.floor(progress / 100);  // обновляем каждые 100 мс
-          
+  
           if (step < path.length) {
             setAnimationPath(path.slice(0, step + 1));
             const reqId = requestAnimationFrame(animatePath);
             setRequestId(reqId);
           } else {
-            cancelAnimationFrame(requestId as number);
+            if (requestId) {
+              cancelAnimationFrame(requestId);
+            }
             setRequestId(null);
           }
         };
-
+  
         const reqId = requestAnimationFrame(animatePath);
         setRequestId(reqId);
-
+  
         return () => {
           if (requestId) {
             cancelAnimationFrame(requestId);
@@ -262,7 +267,7 @@ const Game: React.FC = () => {
         };
       }
     }
-  }, []);
+  }, []); //
 
   // useEffect для перерисовки канваса при изменении состояния
   useEffect(() => {
@@ -270,6 +275,7 @@ const Game: React.FC = () => {
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Это очищает предыдущее
         drawGrid(ctx, rows, cols, cellSize);
         trees.forEach(tree => drawTree(ctx, tree, cellSize));
         drawHQ(ctx, redHQ, 'red', 'E', cellSize);
