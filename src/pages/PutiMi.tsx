@@ -194,7 +194,7 @@ const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cell
 };
 
 // Основной компонент игры
-const PutiMi: React.FC = () => {
+const Game: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);  // Ссылка на элемент канваса
   const [animationPath, setAnimationPath] = useState<Coordinate[]>([]);  // Анимация пути
   const [trees, setTrees] = useState<Coordinate[]>([]);  // Координаты деревьев
@@ -373,4 +373,4 @@ const PutiMi: React.FC = () => {
   );
 };
 
-export default PutiMi;
+export default Game;

@@ -181,7 +181,7 @@ const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cell
   }
 };
 
-const Game: React.FC = () => {
+const Puty: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [animationPath, setAnimationPath] = useState<Coordinate[]>([]);
   const [trees, setTrees] = useState<Coordinate[]>([]);
@@ -266,4 +266,4 @@ const Game: React.FC = () => {
   return <canvas ref={canvasRef} />;
 };
 
-export default Game;
+export default Puty;
