@@ -47,7 +47,14 @@ const treeCount = 20; // Количество деревьев на карте
 const redHQ: Coordinate = { x: 2, y: 2 }; // Координаты штаб-квартиры красных
 const blueHQ: Coordinate = { x: cols - 3, y: rows - 3 }; // Координаты штаб-квартиры синих
 
-// Генерация случайных деревьев на карте
+/**
+ * Генерация случайных деревьев на карте
+ * @param {number} count - Количество деревьев
+ * @param {number} rows - Количество рядов
+ * @param {number} cols - Количество колонок
+ * @param {Coordinate[]} hqs - Координаты штаб-квартир
+ * @returns {Coordinate[]} - Массив координат деревьев
+ */
 const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coordinate[]): Coordinate[] => {
   const trees: Coordinate[] = [];
   
@@ -58,7 +65,10 @@ const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coo
     
     // Проверка, что сгенерированное дерево не попадает на место штаб-квартиры
     const isHQ = hqs.some(hq => hq.x === x && hq.y === y);
-    if (!isHQ && !trees.some(tree => tree.x === x && tree.y === y)) {
+    // Проверка, что новое дерево не попадает на предыдущие деревья
+    const isTrees = trees.some(tree => tree.x === x && tree.y === y);
+    // объединяем вышеперечислеенные две проверки, если условие верное, то добавляем в массив дерево                 
+    if (!isHQ && !isTrees) {
       trees.push({ x, y });
     }
   }
@@ -85,8 +95,10 @@ const Game: React.FC = () => {
         // Добавляем в массив два штаба, красных и синих
         const allHqs = [redHQ, blueHQ];
 
+        // Получаем 20 деревьев с их координатами на поле
         const newTrees = generateRandomTrees(treeCount, rows, cols, allHqs);
-        console.log(allHqs);
+        setTrees(newTrees);  // Установка сгенерированных деревьев
+        console.log(newTrees);
       }
     }
   }, []);
