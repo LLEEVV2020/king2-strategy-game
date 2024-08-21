@@ -1,24 +1,97 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-// Интерфейс для координат
+/**
+ * Интерфейс для координат
+ * Описывает координаты на карте.
+ *
+ * @typedef {Object} Coordinate
+ * @property {number} x - Координата по оси X.
+ * @property {number} y - Координата по оси Y.
+ */
 interface Coordinate {
-    x: number;
-    y: number;
+  x: number;
+  y: number;
+}
+
+/**
+ * Интерфейс для солдатов
+ * Описывает состояние солдата на карте, его позицию, маршрут и прогресс перемещения.
+ */
+interface Soldier {
+  /**
+   * Текущая позиция солдата.
+   * @type {Coordinate}
+   */
+  position: Coordinate;
+
+  /**
+   * Путь, который должен пройти солдат.
+   * Массив координат, описывающих маршрут движения.
+   * @type {Coordinate[]}
+   */
+  path: Coordinate[];
+
+  /**
+   * Прогресс движения солдата по пути.
+   * Значение от 0 (начало пути) до 1 (конец пути).
+   * @type {number}
+   */
+  progress: number;
+}
+
+// Константы для размеров и позиций на карте
+const cellSize = 40;  // Размер клетки в пикселях
+const rows = 9; // Количество рядов на игровом поле
+const cols = 15; // Количество колонок на игровом поле
+const treeCount = 20; // Количество деревьев на карте
+const redHQ: Coordinate = { x: 2, y: 2 }; // Координаты штаб-квартиры красных
+const blueHQ: Coordinate = { x: cols - 3, y: rows - 3 }; // Координаты штаб-квартиры синих
+
+// Генерация случайных деревьев на карте
+const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coordinate[]): Coordinate[] => {
+  const trees: Coordinate[] = [];
+  
+  // Пока не сгенерируем нужное количество деревьев
+  while (trees.length < count) {
+    const x = Math.floor(Math.random() * cols);
+    const y = Math.floor(Math.random() * rows);
+    
+    // Проверка, что сгенерированное дерево не попадает на место штаб-квартиры
+    const isHQ = hqs.some(hq => hq.x === x && hq.y === y);
+    if (!isHQ && !trees.some(tree => tree.x === x && tree.y === y)) {
+      trees.push({ x, y });
+    }
   }
-  // Интерфейс для солдатов
-  interface Soldier {
-    position: Coordinate;
-    path: Coordinate[]; // Путь, который должен пройти солдат
-    progress: number; // Прогресс движения солдата по пути: от 0 (начало) до 1 (конец)
-  }
+  return trees;
+};
 
 // Основной компонент игры
 const Game: React.FC = () => { 
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [trees, setTrees] = useState<Coordinate[]>([]);
-
+  const [barracks, setBarracks] = useState<{ forE: Coordinate | null, forK: Coordinate | null }>({ forE: null, forK: null }); // Состояние для хранения казарм
+  const [soldiers, setSoldiers] = useState<Soldier[]>([]); // Состояние для хранения солдат
+  const [path, setPath] = useState<Coordinate[]>([]); // Состояние для хранения пути
  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // создаём ширину и высоту холста
+        canvas.width = cols * cellSize;
+        canvas.height = rows * cellSize;
+        // Добавляем в массив два штаба, красных и синих
+        const allHqs = [redHQ, blueHQ];
+
+        const newTrees = generateRandomTrees(treeCount, rows, cols, allHqs);
+        console.log(allHqs);
+      }
+    }
+  }, []);
+
+
   return (
     <canvas
         ref={canvasRef}

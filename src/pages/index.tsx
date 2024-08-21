@@ -9,7 +9,7 @@ const HomePage: React.FC = () => {
   return (
     <div style={{ padding: '20px' }}>
       <h1>games</h1>
-      <Game  /> -------------
+      <Game  /> 
       <Soldati />
       
     </div>
