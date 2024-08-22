@@ -48,9 +48,10 @@ const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coo
     const x = Math.floor(Math.random() * cols);
     const y = Math.floor(Math.random() * rows);
     
-    // Проверка, что сгенерированное дерево не попадает на место штаб-квартиры
-    const isHQ = hqs.some(hq => hq.x === x && hq.y === y);
-    if (!isHQ && !trees.some(tree => tree.x === x && tree.y === y)) {
+    // Проверка, что сгенерированное дерево не попадает на место штаб-квартиры,
+    // и на место других деревьев
+    if (!hqs.some(hq => hq.x === x && hq.y === y) && 
+        !trees.some(tree => tree.x === x && tree.y === y))  {
       trees.push({ x, y });
     }
   }
@@ -301,7 +302,6 @@ const Soldati: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const moveSoldiers = () => {
       // Обновление состояния солдат
       setSoldiers(prevSoldiers => 
         prevSoldiers.map(soldier => {
@@ -319,7 +319,7 @@ const Soldati: React.FC = () => {
           const nextY = currentSegmentStart.y + (currentSegmentEnd.y - currentSegmentStart.y) * t;
           
           const nextPosition: Coordinate = { x: nextX, y: nextY };
-          return { ...soldier, position: nextPosition, progress: soldier.progress + 0.0001 };
+          return { ...soldier, position: nextPosition, progress: soldier.progress + 0.0005 };
         }).filter(soldier => soldier.health > 0) // Удаляем солдатов с нулевым здоровьем
       );
 
@@ -338,13 +338,6 @@ const Soldati: React.FC = () => {
         }
       }
 
-      requestAnimationFrame(moveSoldiers);  // Запрос нового кадра анимации
-    };
-
-    const animationFrame = requestAnimationFrame(moveSoldiers);
-    return () => {
-      cancelAnimationFrame(animationFrame);  // Отмена анимации при размонтировании компонента
-    };
   }, [soldiers, path, trees, barracks]);
 
   return <canvas ref={canvasRef} />;  // Возврат элемента canvas
