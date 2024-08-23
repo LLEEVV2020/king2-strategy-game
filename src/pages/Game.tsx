@@ -48,6 +48,16 @@ const redHQ: Coordinate = { x: 2, y: 2 }; // Координаты штаб-кв�
 const blueHQ: Coordinate = { x: cols - 3, y: rows - 3 }; // Координаты штаб-квартиры синих
 
 /**
+ * Возможные направления движения
+ */
+const directions = [
+  { x: 1, y: 0 }, // Вправо
+  { x: -1, y: 0 }, // Влево
+  { x: 0, y: 1 }, // Вниз
+  { x: 0, y: -1 }, // Вверх
+];
+
+/**
  * Генерация случайных деревьев на карте
  * @param {number} count - Количество деревьев
  * @param {number} rows - Количество рядов
@@ -64,11 +74,9 @@ const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coo
     const y = Math.floor(Math.random() * rows);
     
     // Проверка, что сгенерированное дерево не попадает на место штаб-квартиры
-    const isHQ = hqs.some(hq => hq.x === x && hq.y === y);
+    if (!hqs.some(hq => hq.x === x && hq.y === y) && 
     // Проверка, что новое дерево не попадает на предыдущие деревья
-    const isTrees = trees.some(tree => tree.x === x && tree.y === y);
-    // объединяем вышеперечислеенные две проверки, если условие верное, то добавляем в массив дерево                 
-    if (!isHQ && !isTrees) {
+        !trees.some(tree => tree.x === x && tree.y === y))  {
       trees.push({ x, y });
     }
   }
@@ -119,6 +127,29 @@ const drawTree = (ctx: CanvasRenderingContext2D, tree: Coordinate, cellSize: num
   ctx.fillRect(tree.x * cellSize, tree.y * cellSize, cellSize, cellSize);
 };
 
+
+/**
+ * Поиск свободной соседней клетки
+ * @param {Coordinate} position - Координаты позиции
+ * @param {Coordinate[]} occupiedCells - Координаты занятых клеток
+ * @param {number} rows - Количество рядов
+ * @param {number} cols - Количество колонок
+ * @returns {Coordinate | null} - Координаты свободной клетки или null
+ */
+const findFreeAdjacentCell = (position: Coordinate, occupiedCells: Coordinate[], rows: number, cols: number): Coordinate | null => {
+  for (const direction of directions) {
+    const adjacent = { x: position.x + direction.x, y: position.y + direction.y };
+    
+    // Проверка, что клетка в пределах поля и не занята
+    if (adjacent.x >= 0 && adjacent.x < cols && adjacent.y >= 0 && adjacent.y < rows && 
+      !occupiedCells.some(cell => cell.x === adjacent.x && cell.y === adjacent.y)) {
+      return adjacent;
+    }
+  }
+  return null;
+};
+
+
 // Основной компонент игры
 const Game: React.FC = () => { 
 
@@ -142,7 +173,12 @@ const Game: React.FC = () => {
         // Получаем 20 деревьев с их координатами на поле
         const newTrees = generateRandomTrees(treeCount, rows, cols, allHqs);
         setTrees(newTrees);  // Установка сгенерированных деревьев
-        console.log(newTrees);
+
+        const freeCellForRed = findFreeAdjacentCell(redHQ, [...newTrees, ...allHqs], rows, cols);
+        const freeCellForBlue = findFreeAdjacentCell(blueHQ, [...newTrees, ...allHqs], rows, cols);
+        setBarracks({ forE: freeCellForRed, forK: freeCellForBlue });  // Установка казарм
+
+        console.log(trees);
       }
     }
   }, []);
