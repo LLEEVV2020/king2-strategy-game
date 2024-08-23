@@ -108,6 +108,17 @@ const drawGrid = (ctx: CanvasRenderingContext2D, rows: number, cols: number, cel
   ctx.stroke();
 };
 
+/**
+ * Отрисовка дерева
+ * @param {CanvasRenderingContext2D} ctx - Контекст канваса
+ * @param {Coordinate} tree - Координаты дерева
+ * @param {number} cellSize - Размер клетки в пикселях
+ */
+const drawTree = (ctx: CanvasRenderingContext2D, tree: Coordinate, cellSize: number) => {
+  ctx.fillStyle = 'green';
+  ctx.fillRect(tree.x * cellSize, tree.y * cellSize, cellSize, cellSize);
+};
+
 // Основной компонент игры
 const Game: React.FC = () => { 
 
@@ -141,7 +152,13 @@ const Game: React.FC = () => {
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
+        // обязательно нужно очищать, иначе за анимацией будет след
+        ctx.clearRect(0, 0, canvas.width, canvas.height);  // Очистка канваса
         drawGrid(ctx, rows, cols, cellSize);  // Отрисовка сетки
+        
+        trees.forEach(tree => drawTree(ctx, tree, cellSize));  // Отрисовка деревьев
+      
+      
       }
     }
 
