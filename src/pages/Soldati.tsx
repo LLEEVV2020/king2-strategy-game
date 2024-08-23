@@ -301,8 +301,9 @@ const Soldati: React.FC = () => {
     }
   }, []);
 
+  // Обновление состояния солдат с использованием интервального обновления
   useEffect(() => {
-      // Обновление состояния солдат
+    const interval = setInterval(() => {
       setSoldiers(prevSoldiers => 
         prevSoldiers.map(soldier => {
           const segmentIndex = Math.floor(soldier.progress);
@@ -319,26 +320,30 @@ const Soldati: React.FC = () => {
           const nextY = currentSegmentStart.y + (currentSegmentEnd.y - currentSegmentStart.y) * t;
           
           const nextPosition: Coordinate = { x: nextX, y: nextY };
-          return { ...soldier, position: nextPosition, progress: soldier.progress + 0.0005 };
+          return { ...soldier, position: nextPosition, progress: soldier.progress + 0.1 }; // Увеличиваем шаг для более заметного движения
         }).filter(soldier => soldier.health > 0) // Удаляем солдатов с нулевым здоровьем
       );
+    }, 100); // Обновление состояния каждые 100ms
 
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);  // Очистка канваса
-          drawGrid(ctx, rows, cols, cellSize);  // Отрисовка сетки
-          trees.forEach(tree => drawTree(ctx, tree, cellSize));  // Отрисовка деревьев
-          drawHQ(ctx, redHQ, 'red', 'E', cellSize);  // Отрисовка красной штаб-квартиры
-          drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);  // Отрисовка синей штаб-квартиры
-          if (barracks.forE) drawBarrack(ctx, barracks.forE, 'red', cellSize);  // Отрисовка красной казармы
-          if (barracks.forK) drawBarrack(ctx, barracks.forK, 'blue', cellSize);  // Отрисовка синей казармы
-          soldiers.forEach(soldier => drawSoldier(ctx, soldier, 'red', cellSize));  // Отрисовка солдат
-        }
+    return () => clearInterval(interval);
+  }, [soldiers]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);  // Очистка канваса
+        drawGrid(ctx, rows, cols, cellSize);  // Отрисовка сетки
+        trees.forEach(tree => drawTree(ctx, tree, cellSize));  // Отрисовка деревьев
+        drawHQ(ctx, redHQ, 'red', 'E', cellSize);  // Отрисовка красной штаб-квартиры
+        drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);  // Отрисовка синей штаб-квартиры
+        if (barracks.forE) drawBarrack(ctx, barracks.forE, 'red', cellSize);  // Отрисовка красной казармы
+        if (barracks.forK) drawBarrack(ctx, barracks.forK, 'blue', cellSize);  // Отрисовка синей казармы
+        soldiers.forEach(soldier => drawSoldier(ctx, soldier, 'red', cellSize));  // Отрисовка солдат
       }
-
-  }, [soldiers, path, trees, barracks]);
+    }
+  }, [trees, barracks, soldiers, path]);
 
   return <canvas ref={canvasRef} />;  // Возврат элемента canvas
 };
