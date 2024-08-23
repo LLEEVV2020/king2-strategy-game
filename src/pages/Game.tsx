@@ -75,6 +75,39 @@ const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coo
   return trees;
 };
 
+
+/**
+ * Отрисовка сетки на игровом поле
+ * @param {CanvasRenderingContext2D} ctx - Контекст канваса
+ * @param {number} rows - Количество рядов
+ * @param {number} cols - Количество колонок
+ * @param {number} cellSize - Размер клетки в пикселях
+ */
+const drawGrid = (ctx: CanvasRenderingContext2D, rows: number, cols: number, cellSize: number) => {
+  // меняем цвет линий сетки
+  ctx.strokeStyle = 'black';
+
+  // Точка (0, 0), распологается в левом верхнем углу.
+  
+  // рисуем вертикальные линии сетки
+  // начиная сверху и до низу
+  for (let x = 0; x <= cols; x++) {
+    // указывает от куда надо начать рисовтаь
+    ctx.moveTo(x * cellSize, 0);
+    // указывает до куда надо дорисовать линию.
+    ctx.lineTo(x * cellSize, rows * cellSize);
+  }
+  // рисуем горизонтальные линии сетки
+  // начиная слева и до права
+  for (let y = 0; y <= rows; y++) {
+    ctx.moveTo(0, y * cellSize);
+    ctx.lineTo(cols * cellSize, y * cellSize);
+  }
+
+  // прорисовывает клетки
+  ctx.stroke();
+};
+
 // Основной компонент игры
 const Game: React.FC = () => { 
 
@@ -102,6 +135,17 @@ const Game: React.FC = () => {
       }
     }
   }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        drawGrid(ctx, rows, cols, cellSize);  // Отрисовка сетки
+      }
+    }
+
+  }, [soldiers, path, trees, barracks]);
 
 
   return (
