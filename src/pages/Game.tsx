@@ -57,31 +57,6 @@ const directions = [
   { x: 0, y: -1 }, // Вверх
 ];
 
-/**
- * Генерация случайных деревьев на карте
- * @param {number} count - Количество деревьев
- * @param {number} rows - Количество рядов
- * @param {number} cols - Количество колонок
- * @param {Coordinate[]} hqs - Координаты штаб-квартир
- * @returns {Coordinate[]} - Массив координат деревьев
- */
-const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coordinate[]): Coordinate[] => {
-  const trees: Coordinate[] = [];
-  
-  // Пока не сгенерируем нужное количество деревьев
-  while (trees.length < count) {
-    const x = Math.floor(Math.random() * cols);
-    const y = Math.floor(Math.random() * rows);
-    
-    // Проверка, что сгенерированное дерево не попадает на место штаб-квартиры
-    if (!hqs.some(hq => hq.x === x && hq.y === y) && 
-    // Проверка, что новое дерево не попадает на предыдущие деревья
-        !trees.some(tree => tree.x === x && tree.y === y))  {
-      trees.push({ x, y });
-    }
-  }
-  return trees;
-};
 
 
 /**
@@ -129,6 +104,33 @@ const drawTree = (ctx: CanvasRenderingContext2D, tree: Coordinate, cellSize: num
 
 
 /**
+ * Генерация случайных деревьев на карте
+ * @param {number} count - Количество деревьев
+ * @param {number} rows - Количество рядов
+ * @param {number} cols - Количество колонок
+ * @param {Coordinate[]} hqs - Координаты штаб-квартир
+ * @returns {Coordinate[]} - Массив координат деревьев
+ */
+const generateRandomTrees = (count: number, rows: number, cols: number, hqs: Coordinate[]): Coordinate[] => {
+  const trees: Coordinate[] = [];
+  
+  // Пока не сгенерируем нужное количество деревьев
+  while (trees.length < count) {
+    const x = Math.floor(Math.random() * cols);
+    const y = Math.floor(Math.random() * rows);
+    
+    // Проверка, что сгенерированное дерево не попадает на место штаб-квартиры
+    if (!hqs.some(hq => hq.x === x && hq.y === y) && 
+    // Проверка, что новое дерево не попадает на предыдущие деревья
+        !trees.some(tree => tree.x === x && tree.y === y))  {
+      trees.push({ x, y });
+    }
+  }
+  return trees;
+};
+
+
+/**
  * Поиск свободной соседней клетки
  * @param {Coordinate} position - Координаты позиции
  * @param {Coordinate[]} occupiedCells - Координаты занятых клеток
@@ -149,6 +151,141 @@ const findFreeAdjacentCell = (position: Coordinate, occupiedCells: Coordinate[],
   return null;
 };
 
+
+/**
+ * Евклидово расстояние для поиска пути
+ * @param {Coordinate} a - Начальная координата
+ * @param {Coordinate} b - Конечная координата
+ * @returns {number} - Расстояние
+ */
+const heuristic = (a: Coordinate, b: Coordinate): number => {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+};
+
+/**
+ * A* алгоритм для поиска пути
+ * @param {Coordinate} start - Начальная координата
+ * @param {Coordinate} goal - Конечная координата
+ * @param {Coordinate[]} obstacles - Координаты препятствий
+ * @param {number} rows - Количество рядов
+ * @param {number} cols - Количество колонок
+ * @returns {Coordinate[]} - Найденный путь
+ */
+const findPathAStar = (start: Coordinate, goal: Coordinate, obstacles: Coordinate[], rows: number, cols: number): Coordinate[] => {
+  const closedSet: Coordinate[] = [];
+  const openSet: Coordinate[] = [start];
+  const cameFrom: Map<string, Coordinate> = new Map();
+
+  // Карты для хранения текущей стоимости пути и потенциальной стоимости пути
+  const gScore: Map<string, number> = new Map();
+  gScore.set(`${start.x},${start.y}`, 0);
+
+  const fScore: Map<string, number> = new Map();
+  fScore.set(`${start.x},${start.y}`, heuristic(start, goal));
+
+  // Функция проверки препятствий
+  const isObstacle = (x: number, y: number): boolean => {
+    return obstacles.some(ob => ob.x === x && ob.y === y);
+  };
+
+  // Поиск соседних клеток
+  const neighbors = (node: Coordinate): Coordinate[] => {
+    const neighborList: Coordinate[] = [
+      { x: node.x + 1, y: node.y },
+      { x: node.x - 1, y: node.y },
+      { x: node.x, y: node.y + 1 },
+      { x: node.x, y: node.y - 1 },
+    ];
+
+    // Отсеиваем клетки, которые выходят за границы или заняты
+    return neighborList.filter(neighbor => 
+      neighbor.x >= 0 && neighbor.x < cols && 
+      neighbor.y >= 0 && neighbor.y < rows && 
+      !isObstacle(neighbor.x, neighbor.y)
+    );
+  };
+
+  const getNodeKey = (node: Coordinate): string => `${node.x},${node.y}`;
+
+  while (openSet.length > 0) {
+    openSet.sort((a, b) => {
+      const aFScore = fScore.get(getNodeKey(a)) || Infinity;
+      const bFScore = fScore.get(getNodeKey(b)) || Infinity;
+      return aFScore - bFScore;
+    });
+
+    const current = openSet.shift() as Coordinate;
+
+    // Если достигли конечной точки, формируем путь
+    if (current.x === goal.x && current.y === goal.y) {
+      let path: Coordinate[] = [];
+      let temp = current;
+      while (temp) {
+        path.push(temp);
+        temp = cameFrom.get(getNodeKey(temp)) as Coordinate;
+      }
+      return path.reverse();
+    }
+
+    closedSet.push(current);
+
+    // Проверка соседей
+    neighbors(current).forEach(neighbor => {
+      if (closedSet.some(closedNode => closedNode.x === neighbor.x && closedNode.y === neighbor.y)) {
+        return;
+      }
+
+      const tentativeGScore = (gScore.get(getNodeKey(current)) || Infinity) + 1;
+
+      if (!openSet.some(openNode => openNode.x === neighbor.x && openNode.y === neighbor.y)) {
+        openSet.push(neighbor);
+      } else if (tentativeGScore >= (gScore.get(getNodeKey(neighbor)) || Infinity)) {
+        return;
+      }
+
+      // Обновляем карты со значениями
+      cameFrom.set(getNodeKey(neighbor), current);
+      gScore.set(getNodeKey(neighbor), tentativeGScore);
+      fScore.set(getNodeKey(neighbor), tentativeGScore + heuristic(neighbor, goal));
+    });
+  }
+
+  return [];
+};
+
+/**
+ * Отрисовка штаб-квартиры
+ * @param {CanvasRenderingContext2D} ctx - Контекст канваса
+ * @param {Coordinate} hq - Координаты штаб-квартиры
+ * @param {string} color - Цвет штаб-квартиры
+ * @param {string} symbol - Символ штаб-квартиры
+ * @param {number} cellSize - Размер клетки в пикселях
+ */
+const drawHQ = (ctx: CanvasRenderingContext2D, hq: Coordinate, color: string, symbol: string, cellSize: number) => {
+  ctx.fillStyle = color;
+  ctx.fillRect(hq.x * cellSize, hq.y * cellSize, cellSize, cellSize);
+  ctx.fillStyle = 'white';
+  ctx.font = '20px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(symbol, hq.x * cellSize + cellSize / 2, hq.y * cellSize + cellSize / 2);
+};
+
+
+/**
+ * Отрисовка казармы
+ * @param {CanvasRenderingContext2D} ctx - Контекст канваса
+ * @param {Coordinate} barrack - Координаты казармы
+ * @param {string} color - Цвет казармы
+ * @param {number} cellSize - Размер клетки в пикселях
+ */
+const drawBarrack = (ctx: CanvasRenderingContext2D, barrack: Coordinate, color: string, cellSize: number) => {
+  ctx.fillStyle = color;
+  ctx.fillRect(barrack.x * cellSize, barrack.y * cellSize, cellSize, cellSize);
+  // рисуем гранницы квадрата
+  ctx.strokeStyle = 'black';
+  ctx.strokeRect(barrack.x * cellSize, barrack.y * cellSize, cellSize, cellSize);
+};
 
 // Основной компонент игры
 const Game: React.FC = () => { 
@@ -178,7 +315,25 @@ const Game: React.FC = () => {
         const freeCellForBlue = findFreeAdjacentCell(blueHQ, [...newTrees, ...allHqs], rows, cols);
         setBarracks({ forE: freeCellForRed, forK: freeCellForBlue });  // Установка казарм
 
-        console.log(trees);
+        const foundPath = findPathAStar(redHQ, blueHQ, newTrees, rows, cols);
+        setPath(foundPath);  // Установка найденного пути
+
+        // Интервал для добавления солдат
+        const soldierInterval = setInterval(() => {
+          setSoldiers(prev => { 
+            //console.log(prev);
+            return [
+              ...prev,
+              { position: redHQ, path: foundPath, progress: 0, health: 207 }
+            ]
+          });
+        }, 6000);
+
+        // Очистка интервала при размонтировании компонента
+        return () => {
+          clearInterval(soldierInterval);
+        };
+
       }
     }
   }, []);
@@ -191,10 +346,14 @@ const Game: React.FC = () => {
         // обязательно нужно очищать, иначе за анимацией будет след
         ctx.clearRect(0, 0, canvas.width, canvas.height);  // Очистка канваса
         drawGrid(ctx, rows, cols, cellSize);  // Отрисовка сетки
-        
         trees.forEach(tree => drawTree(ctx, tree, cellSize));  // Отрисовка деревьев
       
+        drawHQ(ctx, redHQ, 'red', 'E', cellSize);  // Отрисовка красной штаб-квартиры
+        drawHQ(ctx, blueHQ, 'blue', 'K', cellSize);  // Отрисовка синей штаб-квартиры
       
+        if (barracks.forE) drawBarrack(ctx, barracks.forE, 'red', cellSize);  // Отрисовка красной казармы
+        if (barracks.forK) drawBarrack(ctx, barracks.forK, 'blue', cellSize);  // Отрисовка синей казармы
+
       }
     }
 
