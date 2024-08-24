@@ -369,6 +369,10 @@ const Game: React.FC = () => {
             const segmentIndex = Math.floor(soldier.progress);
             if (segmentIndex >= soldier.path.length - 1) {
               soldier.health = 0; // Если солдат достиг конечной точки, он считается уничтоженным.
+              
+              console.log(segmentIndex);
+              console.log(soldier.path.length);
+              console.log({...soldier});
               return { ...soldier, progress: soldier.path.length - 1 };
             }
             
