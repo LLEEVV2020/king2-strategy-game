@@ -37,6 +37,12 @@ interface Soldier {
    * @type {number}
    */
   progress: number;
+
+  /**
+   * Здоровье для воинов
+   * @type {number}
+   */
+  health: number;
 }
 
 // Константы для размеров и позиций на карте
@@ -287,6 +293,23 @@ const drawBarrack = (ctx: CanvasRenderingContext2D, barrack: Coordinate, color: 
   ctx.strokeRect(barrack.x * cellSize, barrack.y * cellSize, cellSize, cellSize);
 };
 
+
+/**
+ * Отрисовка солдата
+ * @param {CanvasRenderingContext2D} ctx - Контекст канваса
+ * @param {Soldier} soldier - Объект солдата
+ * @param {string} color - Цвет солдата
+ * @param {number} cellSize - Размер клетки в пикселях
+ */
+const drawSoldier = (ctx: CanvasRenderingContext2D, soldier: Soldier, color: string, cellSize: number) => {
+  ctx.fillStyle = color;
+  const centerX = soldier.position.x * cellSize + cellSize / 2;
+  const centerY = soldier.position.y * cellSize + cellSize / 2;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, cellSize / 4, 0, 2 * Math.PI);
+  ctx.fill();
+};
+
 // Основной компонент игры
 const Game: React.FC = () => { 
 
@@ -338,6 +361,33 @@ const Game: React.FC = () => {
     }
   }, []);
 
+    // Обновление состояния солдат с использованием интервального обновления
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setSoldiers(prevSoldiers => 
+          prevSoldiers.map(soldier => {
+            const segmentIndex = Math.floor(soldier.progress);
+            if (segmentIndex >= soldier.path.length - 1) {
+              soldier.health = 0; // Если солдат достиг конечной точки, он считается уничтоженным.
+              return { ...soldier, progress: soldier.path.length - 1 };
+            }
+            
+            const currentSegmentStart = soldier.path[segmentIndex];
+            const currentSegmentEnd = soldier.path[segmentIndex + 1];
+            
+            const t = soldier.progress - segmentIndex;
+            const nextX = currentSegmentStart.x + (currentSegmentEnd.x - currentSegmentStart.x) * t;
+            const nextY = currentSegmentStart.y + (currentSegmentEnd.y - currentSegmentStart.y) * t;
+            
+            const nextPosition: Coordinate = { x: nextX, y: nextY };
+            return { ...soldier, position: nextPosition, progress: soldier.progress + 0.1 }; // Увеличиваем шаг для более заметного движения
+          }).filter(soldier => soldier.health > 0) // Удаляем солдатов с нулевым здоровьем
+        );
+      }, 100); // Обновление состояния каждые 100ms
+  
+      return () => clearInterval(interval);
+    }, [soldiers]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
@@ -354,6 +404,8 @@ const Game: React.FC = () => {
         if (barracks.forE) drawBarrack(ctx, barracks.forE, 'red', cellSize);  // Отрисовка красной казармы
         if (barracks.forK) drawBarrack(ctx, barracks.forK, 'blue', cellSize);  // Отрисовка синей казармы
 
+        soldiers.forEach(soldier => drawSoldier(ctx, soldier, 'red', cellSize));  // Отрисовка солдат
+
       }
     }
 
@@ -368,18 +420,3 @@ const Game: React.FC = () => {
 };
 
 export default Game;
-
-
-  /*
-  // Отрисовка пути
-  const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cellSize: number) => {
-  if (currentPath.length > 0) {
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.setLineDash([5, 5]);  // пунктирная линия
-    ctx.moveTo(currentPath[0].x * cellSize + cellSize / 2, currentPath[0].y * cellSize + cellSize / 2);
-    currentPath.forEach(pos => ctx.lineTo(pos.x * cellSize + cellSize / 2, pos.y * cellSize + cellSize / 2));
-    ctx.stroke();
-  }
-};*/

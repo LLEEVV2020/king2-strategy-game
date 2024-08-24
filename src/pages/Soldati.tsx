@@ -349,3 +349,19 @@ const Soldati: React.FC = () => {
 };
 
 export default Soldati;  // Экспорт компонента
+
+
+
+  /*
+  // Отрисовка пути
+  const drawPath = (ctx: CanvasRenderingContext2D, currentPath: Coordinate[], cellSize: number) => {
+  if (currentPath.length > 0) {
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.setLineDash([5, 5]);  // пунктирная линия
+    ctx.moveTo(currentPath[0].x * cellSize + cellSize / 2, currentPath[0].y * cellSize + cellSize / 2);
+    currentPath.forEach(pos => ctx.lineTo(pos.x * cellSize + cellSize / 2, pos.y * cellSize + cellSize / 2));
+    ctx.stroke();
+  }
+};*/
