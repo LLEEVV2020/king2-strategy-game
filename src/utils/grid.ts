@@ -1,5 +1,13 @@
 import { Coordinate } from '../types';
 
+/**
+ * Генерация случайных деревьев на карте
+ * @param {number} count - Количество деревьев
+ * @param {number} rows - Количество рядов
+ * @param {number} cols - Количество колонок
+ * @param {Coordinate[]} hqs - Координаты штаб-квартир
+ * @returns {Coordinate[]} - Массив координат деревьев
+ */
 export const generateRandomTrees = (
     count: number, 
     rows: number, 
@@ -8,11 +16,16 @@ export const generateRandomTrees = (
   ): Coordinate[] => {
     const trees: Coordinate[] = [];
     
+    
+  // цикл крутится до тех пор, пока не сгенерируем нужное количество деревьев
     while (trees.length < count) {
       const x = Math.floor(Math.random() * cols);
       const y = Math.floor(Math.random() * rows);
       
-      if (!hqs.some(hq => hq.x === x && hq.y === y) && !trees.some(tree => tree.x === x && tree.y === y)) {
+      // Проверка, что сгенерированное дерево не попадает на место штаб-квартиры
+      if (!hqs.some(hq => hq.x === x && hq.y === y) && 
+          // Проверка, что новое дерево не попадает на предыдущие деревья
+          !trees.some(tree => tree.x === x && tree.y === y)) {
         trees.push({ x, y });
       }
     }
