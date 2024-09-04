@@ -44,9 +44,19 @@ export const drawTree = (ctx: CanvasRenderingContext2D, tree: Coordinate, cellSi
   ctx.fillRect(tree.x * cellSize, tree.y * cellSize, cellSize, cellSize);
 };
 
+/**
+ * Отрисовка штаб-квартиры
+ * @param {CanvasRenderingContext2D} ctx - Контекст канваса
+ * @param {Coordinate} hq - Координаты штаб-квартиры
+ * @param {string} color - Цвет штаб-квартиры
+ * @param {string} symbol - Символ штаб-квартиры
+ * @param {number} cellSize - Размер клетки в пикселях
+ */
 export const drawHQ = (ctx: CanvasRenderingContext2D, hq: Coordinate, color: string, symbol: string, cellSize: number) => {
   ctx.fillStyle = color;
   ctx.fillRect(hq.x * cellSize, hq.y * cellSize, cellSize, cellSize);
+
+  // рисуем пукву на штабе
   ctx.fillStyle = 'white';
   ctx.font = '20px Arial';
   ctx.textAlign = 'center';
@@ -54,13 +64,35 @@ export const drawHQ = (ctx: CanvasRenderingContext2D, hq: Coordinate, color: str
   ctx.fillText(symbol, hq.x * cellSize + cellSize / 2, hq.y * cellSize + cellSize / 2);
 };
 
+/**
+ * Отрисовка казармы
+ * @param {CanvasRenderingContext2D} ctx - Контекст канваса
+ * @param {Coordinate} barrack - Координаты казармы
+ * @param {string} color - Цвет казармы
+ * @param {number} cellSize - Размер клетки в пикселях
+ */
 export const drawBarrack = (ctx: CanvasRenderingContext2D, barrack: Coordinate, color: string, cellSize: number) => {
   ctx.fillStyle = color;
   ctx.fillRect(barrack.x * cellSize, barrack.y * cellSize, cellSize, cellSize);
   ctx.strokeStyle = 'black';
   ctx.strokeRect(barrack.x * cellSize, barrack.y * cellSize, cellSize, cellSize);
+  
+  // рисуем точку
+  ctx.fillStyle = 'white';
+  ctx.font = '20px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(".", barrack.x * cellSize + cellSize / 2, barrack.y * cellSize + cellSize / 2);
+
 };
 
+/**
+ * Отрисовка солдата
+ * @param {CanvasRenderingContext2D} ctx - Контекст канваса
+ * @param {Soldier} soldier - Объект солдата
+ * @param {string} color - Цвет солдата
+ * @param {number} cellSize - Размер клетки в пикселях
+ */
 export const drawSoldier = (ctx: CanvasRenderingContext2D, soldier: Soldier, color: string, cellSize: number) => {
   ctx.fillStyle = color;
   const centerX = soldier.position.x * cellSize + cellSize / 2;
