@@ -1,4 +1,5 @@
 import { Coordinate } from '../types';
+import { DIRECTION } from '../constants';
 
 /**
  * Генерация случайных деревьев на карте
@@ -33,17 +34,20 @@ export const generateRandomTrees = (
     return trees;
   };
   
+  /**
+ * Поиск свободной соседней клетки
+ * @param {Coordinate} position - Координаты позиции
+ * @param {Coordinate[]} occupiedCells - Координаты занятых клеток
+ * @param {number} rows - Количество рядов
+ * @param {number} cols - Количество колонок
+ * @returns {Coordinate | null} - Координаты свободной клетки или null
+ */
   export const findFreeAdjacentCell = (position: Coordinate, occupiedCells: Coordinate[], rows: number, cols: number): Coordinate | null => {
-    const directions = [
-      { x: 1, y: 0 },
-      { x: -1, y: 0 },
-      { x: 0, y: 1 },
-      { x: 0, y: -1 },
-    ];
     
-    for (const direction of directions) {
+    for (const direction of DIRECTION) {
       const adjacent = { x: position.x + direction.x, y: position.y + direction.y };
       
+    // Проверка, что клетка в пределах поля и не занята      
       if (adjacent.x >= 0 && adjacent.x < cols && adjacent.y >= 0 && adjacent.y < rows && 
           !occupiedCells.some(cell => cell.x === adjacent.x && cell.y === adjacent.y)) {
         return adjacent;
