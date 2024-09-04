@@ -1,6 +1,8 @@
 import React from 'react';
 import { Coordinate, Soldier } from '../types';
 
+// !!! Компанент создан, но он ни где не используется
+// ! поэтому и не стал здесь расписывать комментарии
 interface SoldierProps {
   soldier: Soldier;
   color: string;
