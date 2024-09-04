@@ -4,45 +4,53 @@ import { generateRandomTrees, findFreeAdjacentCell } from '../utils/grid';
 import { findPathAStar } from '../utils/pathFinding';
 import { Coordinate, Soldier } from '../types';
 
-const cellSize = 40;
-const rows = 9;
-const cols = 15;
-const treeCount = 20;
-const redHQ: Coordinate = { x: 2, y: 2 };
-const blueHQ: Coordinate = { x: cols - 3, y: rows - 3 };
+// Константы для размеров и позиций на карте
+const cellSize = 40;  // Размер клетки в пикселях
+const rows = 9; // Количество рядов на игровом поле
+const cols = 15; // Количество колонок на игровом поле
+const treeCount = 20; // Количество деревьев на карте
+const redHQ: Coordinate = { x: 2, y: 2 }; // Координаты штаб-квартиры красных
+const blueHQ: Coordinate = { x: cols - 3, y: rows - 3 }; // Координаты штаб-квартиры синих
+
 
 const Game: React.FC = () => { 
   const [trees, setTrees] = useState<Coordinate[]>([]);
   const [barracks, setBarracks] = useState<{ forE: Coordinate | null, forK: Coordinate | null }>({ forE: null, forK: null });
-  const [soldiers, setSoldiers] = useState<Soldier[]>([]);
-  const [path, setPath] = useState<Coordinate[]>([]);
+  const [soldiers, setSoldiers] = useState<Soldier[]>([]); // Состояние для хранения солдат
+  const [path, setPath] = useState<Coordinate[]>([]); // Состояние для хранения пути
 
   useEffect(() => {
+    // Добавляем в массив два штаба, красных и синих
     const allHqs = [redHQ, blueHQ];
+
+    // Получаем 20 деревьев с их координатами на поле
     const newTrees = generateRandomTrees(treeCount, rows, cols, allHqs);
-    setTrees(newTrees);
+    setTrees(newTrees); // Установка сгенерированных деревьев
 
     const freeCellForRed = findFreeAdjacentCell(redHQ, [...newTrees, ...allHqs], rows, cols);
     const freeCellForBlue = findFreeAdjacentCell(blueHQ, [...newTrees, ...allHqs], rows, cols);
-    setBarracks({ forE: freeCellForRed, forK: freeCellForBlue });
+    setBarracks({ forE: freeCellForRed, forK: freeCellForBlue }); // Установка казарм
 
     const foundPath = findPathAStar(redHQ, blueHQ, newTrees, rows, cols);
-    setPath(foundPath);
+    setPath(foundPath);  // Установка найденного пути
 
+    // Интервал для добавления солдат
     const soldierInterval = setInterval(() => {
       setSoldiers(prev => [...prev, { position: redHQ, path: foundPath, progress: 0, health: 207 }]);
     }, 6000);
 
+     // Очистка интервала при размонтировании компонента
     return () => clearInterval(soldierInterval);
   }, []);
 
+  // Обновление состояния солдат с использованием интервального обновления
   useEffect(() => {
     const interval = setInterval(() => {
       setSoldiers(prevSoldiers => 
         prevSoldiers.map(soldier => {
           const segmentIndex = Math.floor(soldier.progress);
           if (segmentIndex >= soldier.path.length - 1) {
-            soldier.health = 0;
+            soldier.health = 0; // Если солдат достиг конечной точки, он считается уничтоженным.
             return { ...soldier, progress: soldier.path.length - 1 };
           }
 
@@ -53,10 +61,10 @@ const Game: React.FC = () => {
           const nextY = currentSegmentStart.y + (currentSegmentEnd.y - currentSegmentStart.y) * t;
           const nextPosition: Coordinate = { x: nextX, y: nextY };
 
-          return { ...soldier, position: nextPosition, progress: soldier.progress + 0.1 };
-        }).filter(soldier => soldier.health > 0)
+          return { ...soldier, position: nextPosition, progress: soldier.progress + 0.1 }; // Увеличиваем шаг для более заметного движения
+        }).filter(soldier => soldier.health > 0) // Удаляем солдатов с нулевым здоровьем
       );
-    }, 100);
+    }, 100); // Обновление состояния каждые 100ms
 
     return () => clearInterval(interval);
   }, [soldiers]);
