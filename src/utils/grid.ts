@@ -15,10 +15,10 @@ export const generateRandomTrees = (
     cols: number, 
     hqs: Coordinate[]
   ): Coordinate[] => {
+    
     const trees: Coordinate[] = [];
     
-    
-  // цикл крутится до тех пор, пока не сгенерируем нужное количество деревьев
+    // цикл крутится до тех пор, пока не сгенерируем нужное количество деревьев
     while (trees.length < count) {
       const x = Math.floor(Math.random() * cols);
       const y = Math.floor(Math.random() * rows);
