@@ -19,6 +19,7 @@ const Game: React.FC = () => {
   const [soldiers, setSoldiers] = useState<Soldier[]>([]); // Состояние для хранения солдат
   const [path, setPath] = useState<Coordinate[]>([]); // Состояние для хранения пути
 
+
   useEffect(() => {
     // Добавляем в массив два штаба, красных и синих
     const allHqs = [redHQ, blueHQ];
@@ -29,9 +30,18 @@ const Game: React.FC = () => {
 
     const freeCellForRed = findFreeAdjacentCell(redHQ, [...newTrees, ...allHqs], rows, cols);
     const freeCellForBlue = findFreeAdjacentCell(blueHQ, [...newTrees, ...allHqs], rows, cols);
+    
     setBarracks({ forE: freeCellForRed, forK: freeCellForBlue }); // Установка казарм
 
-    const foundPath = findPathAStar(redHQ, blueHQ, newTrees, rows, cols);
+    console.log('barracks.forE',barracks);
+    if(barracks.forE === null){
+      console.log("null === barracks.forE")
+    } else {
+      console.log("null !== barracks.forE")
+    }
+
+    const foundPath = findPathAStar(barracks.forE ?? redHQ, blueHQ, newTrees, rows, cols);
+    
     setPath(foundPath);  // Установка найденного пути
 
     // Интервал для добавления солдат
