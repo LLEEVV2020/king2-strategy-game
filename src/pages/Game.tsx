@@ -23,32 +23,29 @@ const Game: React.FC = () => {
   useEffect(() => {
     // Добавляем в массив два штаба, красных и синих
     const allHqs = [redHQ, blueHQ];
-
+  
     // Получаем 20 деревьев с их координатами на поле
     const newTrees = generateRandomTrees(treeCount, rows, cols, allHqs);
     setTrees(newTrees); // Установка сгенерированных деревьев
-
+  
     const freeCellForRed = findFreeAdjacentCell(redHQ, [...newTrees, ...allHqs], rows, cols);
     const freeCellForBlue = findFreeAdjacentCell(blueHQ, [...newTrees, ...allHqs], rows, cols);
     
-    setBarracks({ forE: freeCellForRed, forK: freeCellForBlue }); // Установка казарм
-
-    console.log('barracks.forE',barracks);
-    if(barracks.forE === null){
-      console.log("null === barracks.forE")
-    } else {
-      console.log("null !== barracks.forE")
-    }
-
-    const foundPath = findPathAStar(barracks.forE ?? redHQ, blueHQ, newTrees, rows, cols);
+    // Когда вы вызываете setBarracks, новое состояние barracks не становится доступным сразу же. 
+    // React обновляет состояние асинхронно, поэтому чтение состояния сразу же после его обновления 
+    // не даст ожидаемого результата. Поэтому ниже вынужден использовать локальную переменную
+    const newBarracks = { forE: freeCellForRed, forK: freeCellForBlue };
+    setBarracks(newBarracks); // Установка казарм
+  
+    const foundPath = findPathAStar(newBarracks.forE ?? redHQ, blueHQ, newTrees, rows, cols);
     
     setPath(foundPath);  // Установка найденного пути
-
+  
     // Интервал для добавления солдат
     const soldierInterval = setInterval(() => {
-      setSoldiers(prev => [...prev, { position: redHQ, path: foundPath, progress: 0, health: 207 }]);
+      setSoldiers(prev => [...prev, { position: newBarracks.forE ??redHQ, path: foundPath, progress: 0, health: 207 }]);
     }, 6000);
-
+  
      // Очистка интервала при размонтировании компонента
     return () => clearInterval(soldierInterval);
   }, []);
